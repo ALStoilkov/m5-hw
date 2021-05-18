@@ -13,3 +13,6 @@ server.use("/authors", authorsRouter);
 console.table(listEndpoints(server));
 
 server.listen(port, () => console.log("My server is online on: ", port));
+server.on("error", (console) => {
+  console.log(`❌ The server has encountered an error: ${error}`);
+});
