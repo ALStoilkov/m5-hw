@@ -56,7 +56,7 @@ authorsRouter.delete("/:id", (req, res) => {
   // write new json
   fs.writeFileSync(authorsJSONPath, JSON.stringify(newArrOfAuthors));
   //res
-  res.status(200).send();
+  res.status(204).send();
 });
 
 export default authorsRouter;
