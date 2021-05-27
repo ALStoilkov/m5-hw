@@ -1,62 +1,70 @@
 import express from "express";
-import fs from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import uniqid from "uniqid";
+import { getAuthors, writeAuthors } from "../lib/fs-tools.js";
 
 const authorsRouter = express.Router();
-
-const indexPath = fileURLToPath(import.meta.url);
-const dirPath = dirname(indexPath);
-const authorsJSONPath = join(dirPath, "authors.json");
-const authorsAsABuffer = fs.readFileSync(authorsJSONPath); // read the file
-const authors = JSON.parse(authorsAsABuffer); //JSON object
-
-authorsRouter.get("/", (req, res) => {
-  //   console.log(posts);
-  res.status(200).send(authors);
+authorsRouter.get("/", async (req, res, next) => {
+  try {
+    const authors = await getAuthors();
+    if (authors.length > 0) {
+      res.send(authors);
+    } else {
+      // console.log(`ERROR IN ELSE`);
+      next(createError(404, `There are no authors yet`));
+    }
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
 });
-authorsRouter.get("/:id", (req, res) => {
-  // console.log(req.params.id);
-  //search for an ID in the array
-  const searchedAuthor = authors.find((author) => author.id === req.params.id);
-  // console.log(searchedAuthor);
-  //code and return author
-  res.status(200).send(searchedAuthor);
+authorsRouter.get("/:id", async (req, res, next) => {
+  try {
+    const authors = await getAuthors();
+    const author = authors.find((post) => post._id === req.params.id);
+    // console.log(author);
+    author
+      ? res.send(author)
+      : next(createError(404, `There is no post with ID: ${req.params.id}`));
+  } catch (error) {
+    next(error);
+  }
 });
-authorsRouter.post("/", (req, res) => {
-  // req.body to object with and ID
-  const newAuthor = { ...req.body, id: uniqid() };
-  //push new author to file
-  authors.push(newAuthor);
-  // write new json
-  fs.writeFileSync(authorsJSONPath, JSON.stringify(authors));
-  //return 201 + id
-  res.status(201).send(newAuthor.id);
+authorsRouter.post("/", async (req, res, next) => {
+  try {
+    // console.log(req.body);
+    const newAuthor = { ...req.body, _id: uniqid(), createdAt: new Date() };
+    const getAuthors = await getAuthors();
+    getAuthors.push(newAuthor);
+    await writeAuthors(getAuthors);
+    res.status(201).send({ _id: newAuthor._id });
+  } catch (error) {
+    next(error);
+  }
 });
-authorsRouter.put("/:id", (req, res) => {
-  // remove the one we modify
-  const newArrOfAuthors = authors.filter(
-    (author) => author.id !== req.params.id
-  );
-  // create a new one using the req.body
-  const updatedAuthor = { ...req.body, id: req.params.id };
-  // push to array
-  newArrOfAuthors.push(updatedAuthor);
-  // write new json
-  fs.writeFileSync(authorsJSONPath, JSON.stringify(newArrOfAuthors));
-  // res
-  res.status(200).send(updatedAuthor);
+authorsRouter.put("/:id", async (req, res, next) => {
+  try {
+    const filteredAuthors = await getAuthors().filter(
+      (post) => post._id !== req.params.id
+    );
+    const newAuthor = { ...req.body, modifiedAt: new Date() };
+    const authors = filteredAuthors.push(newAuthor);
+    await writeAuthors(authors);
+    res.send(newAuthor);
+  } catch (error) {
+    next(error);
+  }
 });
-authorsRouter.delete("/:id", (req, res) => {
-  // filter author to del
-  const newArrOfAuthors = authors.filter(
-    (author) => author.id !== req.params.id
-  );
-  // write new json
-  fs.writeFileSync(authorsJSONPath, JSON.stringify(newArrOfAuthors));
-  //res
-  res.status(204).send();
+authorsRouter.delete("/:id", async (req, res, next) => {
+  try {
+    const getAuthors = await getAuthors();
+    const filteredAuthors = getAuthors.filter(
+      (post) => post._id !== req.params.id
+    );
+    await writeAuthors(filteredAuthors);
+    res.status(204).send(`Post with ID ${req.params.id} deleted`);
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default authorsRouter;
